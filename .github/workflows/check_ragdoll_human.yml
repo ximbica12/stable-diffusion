@@ -17,7 +17,7 @@ jobs:
       - uses: actions/checkout@v4
       - name: Download Godot 4.5.1 Linux
         run: |
-          curl -L --fail --retry 3 -o godot.zip             https://github.com/godotengine/godot-builds/releases/download/4.5.1-stable/Godot_v4.5.1-stable_linux.x86_64.zip
+          curl -L --fail --retry 3 -o godot.zip https://github.com/godotengine/godot-builds/releases/download/4.5.1-stable/Godot_v4.5.1-stable_linux.x86_64.zip
           unzip -q godot.zip
           chmod +x Godot_v4.5.1-stable_linux.x86_64
       - name: Parse patched script with Godot 4.5.1
@@ -29,3 +29,8 @@ jobs:
             exit 1
           fi
           echo "Godot 4.5.1 parser check passed."
+      - name: Runtime-test dynamic penis physical bones and stability
+        run: |
+          set -o pipefail
+          ./Godot_v4.5.1-stable_linux.x86_64 --headless --path ragdoll_check --script res://runtime_test.gd 2>&1 | tee runtime-test.log
+          grep -q 'RUNTIME_PATCH_TEST_OK' runtime-test.log
