@@ -1,0 +1,1 @@
+Trigger custom Godot 4.5.1 x86_64 SSE2 build for Pentium E5700.
