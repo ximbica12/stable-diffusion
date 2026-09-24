@@ -1,0 +1,128 @@
+name: Build Godot 4.5.1 Win64 E5700 SSE2
+
+on:
+  push:
+    branches:
+      - godot451-e5700-x64-build
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+
+    steps:
+      - name: Checkout build host branch
+        uses: actions/checkout@v4
+
+      - name: Checkout Godot 4.5.1 source
+        uses: actions/checkout@v4
+        with:
+          repository: godotengine/godot
+          ref: 4.5.1-stable
+          path: godot
+          fetch-depth: 1
+
+      - name: Install cross compiler and SCons
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y mingw-w64 scons
+          if [ -x /usr/bin/x86_64-w64-mingw32-gcc-posix ]; then
+            sudo update-alternatives --set x86_64-w64-mingw32-gcc /usr/bin/x86_64-w64-mingw32-gcc-posix
+          fi
+          if [ -x /usr/bin/x86_64-w64-mingw32-g++-posix ]; then
+            sudo update-alternatives --set x86_64-w64-mingw32-g++ /usr/bin/x86_64-w64-mingw32-g++-posix
+          fi
+          x86_64-w64-mingw32-gcc --version
+          x86_64-w64-mingw32-g++ --version
+          scons --version
+
+      - name: Patch Godot for x86-64 SSE2 baseline
+        working-directory: godot
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          sconstruct = Path("SConstruct")
+          s = sconstruct.read_text(encoding="utf-8")
+          old = '''    else:
+                  # `-msse2` is implied when compiling for x86_64.
+                  env.Append(CCFLAGS=["-msse4.2", "-mpopcnt"])
+          '''
+          new = '''    else:
+                  # Custom legacy x86-64 build: baseline SSE2 only.
+                  # This intentionally avoids SSE3/SSSE3/SSE4.x/POPCNT so the
+                  # executable can start on older Intel 64 CPUs such as E5700.
+                  env.Append(CCFLAGS=[
+                      "-msse2",
+                      "-mno-sse3",
+                      "-mno-ssse3",
+                      "-mno-sse4",
+                      "-mno-sse4.1",
+                      "-mno-sse4.2",
+                      "-mno-popcnt",
+                  ])
+          '''
+          if old not in s:
+              raise SystemExit("Expected SSE4.2 block not found in SConstruct")
+          sconstruct.write_text(s.replace(old, new, 1), encoding="utf-8")
+
+          scsub = Path("platform/windows/SCsub")
+          s = scsub.read_text(encoding="utf-8")
+          old = 'if env["arch"] == "x86_64":\n    env_cpp_check = env.Clone()\n'
+          new = 'if False and env["arch"] == "x86_64":\n    env_cpp_check = env.Clone()\n'
+          if old not in s:
+              raise SystemExit("Expected x86_64 CPU validation block not found in platform/windows/SCsub")
+          scsub.write_text(s.replace(old, new, 1), encoding="utf-8")
+          PY
+
+          echo "=== Patched compiler baseline ==="
+          grep -n -A18 -B4 "Custom legacy x86-64" SConstruct
+          echo "=== Windows CPU validation block ==="
+          grep -n -A14 -B3 'False and env\["arch"\]' platform/windows/SCsub
+
+      - name: Build 64-bit Windows template
+        working-directory: godot
+        run: |
+          scons -j2 \
+            platform=windows \
+            target=template_release \
+            arch=x86_64 \
+            use_mingw=yes \
+            production=yes \
+            debug_symbols=no \
+            lto=none \
+            verbose=no
+
+      - name: Package result
+        shell: bash
+        run: |
+          set -eux
+          mkdir -p out
+          find godot/bin -maxdepth 1 -type f -printf '%f\n' | sort
+          MAIN_EXE="$(find godot/bin -maxdepth 1 -type f -name 'godot.windows.template_release.x86_64*.exe' ! -name '*console*' | head -n1)"
+          test -n "$MAIN_EXE"
+          cp "$MAIN_EXE" "out/Godot_v4.5.1-stable_win64_E5700_SSE2.exe"
+          x86_64-w64-mingw32-objdump -f "out/Godot_v4.5.1-stable_win64_E5700_SSE2.exe"
+          sha256sum "out/Godot_v4.5.1-stable_win64_E5700_SSE2.exe" | tee out/SHA256SUMS.txt
+          cat > out/BUILD_INFO.txt <<'EOF'
+          Godot 4.5.1 stable custom Windows x86_64 runtime
+          Target CPU baseline: x86_64 + SSE2
+          SSE4.2 startup gate: removed
+          Compiler autovectorization: SSE3/SSSE3/SSE4.x/POPCNT disabled
+          Target use: older Intel 64 CPUs without SSE4.2, including Pentium E5700
+          Build target: template_release
+          Renderer/features: Godot defaults retained; no game feature modules intentionally removed
+          EOF
+
+      - name: Upload runtime
+        uses: actions/upload-artifact@v4
+        with:
+          name: godot451-win64-e5700-sse2
+          path: out/
+          compression-level: 6
+          retention-days: 7
