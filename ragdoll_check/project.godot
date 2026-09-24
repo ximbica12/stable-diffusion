@@ -1,0 +1,7 @@
+[application]
+config/name="Ragdoll Script Check"
+run/main_scene="res://test.tscn"
+
+[rendering]
+renderer/rendering_method="gl_compatibility"
+renderer/rendering_method.mobile="gl_compatibility"
