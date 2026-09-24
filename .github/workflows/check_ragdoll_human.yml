@@ -1,0 +1,31 @@
+name: Check Ragdoll Godot Script
+
+on:
+  push:
+    branches:
+      - ragdoll-human-check
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  parse:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download Godot 4.5.1 Linux
+        run: |
+          curl -L --fail --retry 3 -o godot.zip             https://github.com/godotengine/godot-builds/releases/download/4.5.1-stable/Godot_v4.5.1-stable_linux.x86_64.zip
+          unzip -q godot.zip
+          chmod +x Godot_v4.5.1-stable_linux.x86_64
+      - name: Parse patched script with Godot 4.5.1
+        run: |
+          set -o pipefail
+          ./Godot_v4.5.1-stable_linux.x86_64 --headless --editor --path ragdoll_check --quit 2>&1 | tee godot-parse.log
+          if grep -Eiq 'SCRIPT ERROR|Parse Error|Failed to load script|Could not parse' godot-parse.log; then
+            cat godot-parse.log
+            exit 1
+          fi
+          echo "Godot 4.5.1 parser check passed."
