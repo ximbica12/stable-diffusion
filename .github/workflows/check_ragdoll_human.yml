@@ -34,3 +34,10 @@ jobs:
           set -o pipefail
           ./Godot_v4.5.1-stable_linux.x86_64 --headless --path ragdoll_check --script res://runtime_test.gd 2>&1 | tee runtime-test.log
           grep -q 'RUNTIME_PATCH_TEST_OK' runtime-test.log
+      - name: Upload Linux Godot test runtime
+        uses: actions/upload-artifact@v4
+        with:
+          name: godot451-linux-test-runtime
+          path: Godot_v4.5.1-stable_linux.x86_64
+          compression-level: 6
+          retention-days: 1
