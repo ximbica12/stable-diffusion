@@ -20,14 +20,12 @@ jobs:
           curl -L --fail --retry 3 -o v7_reference_assets/CanineDildo.glb https://raw.githubusercontent.com/Alexofp/BDCC/main/Player/Props/CanineDildo.glb
           curl -L --fail --retry 3 -o v7_reference_assets/HorsecockDildo.glb https://raw.githubusercontent.com/Alexofp/BDCC/main/Player/Props/HorsecockDildo.glb
           curl -L --fail --retry 3 -o v7_reference_assets/BDCC_LICENSE.txt https://raw.githubusercontent.com/Alexofp/BDCC/main/LICENSE
-          cat > v7_reference_assets/SOURCE.txt <<'EOF'
-Source repository: https://github.com/Alexofp/BDCC
-Files:
-- Player/Props/CanineDildo.glb
-- Player/Props/HorsecockDildo.glb
-Repository license: MIT (copy included as BDCC_LICENSE.txt)
-Fetched only as reference/third-party assets for the Ragdoll Sims V7 prototype.
-EOF
+          printf '%s\n' \
+            'Source repository: https://github.com/Alexofp/BDCC' \
+            'Files: Player/Props/CanineDildo.glb, Player/Props/HorsecockDildo.glb' \
+            'Repository license: MIT (copy included as BDCC_LICENSE.txt)' \
+            'Fetched as third-party reference assets for the Ragdoll Sims V7 prototype.' \
+            > v7_reference_assets/SOURCE.txt
           sha256sum v7_reference_assets/* > v7_reference_assets/SHA256SUMS.txt
       - uses: actions/upload-artifact@v4
         with:
