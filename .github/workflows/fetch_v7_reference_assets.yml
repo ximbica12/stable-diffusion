@@ -1,0 +1,36 @@
+name: Fetch MIT BDCC Prop References
+
+on:
+  push:
+    branches:
+      - ragdoll-v7-targeted-interactions
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  fetch:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Fetch selected MIT-licensed reference assets
+        run: |
+          mkdir -p v7_reference_assets
+          curl -L --fail --retry 3 -o v7_reference_assets/CanineDildo.glb https://raw.githubusercontent.com/Alexofp/BDCC/main/Player/Props/CanineDildo.glb
+          curl -L --fail --retry 3 -o v7_reference_assets/HorsecockDildo.glb https://raw.githubusercontent.com/Alexofp/BDCC/main/Player/Props/HorsecockDildo.glb
+          curl -L --fail --retry 3 -o v7_reference_assets/BDCC_LICENSE.txt https://raw.githubusercontent.com/Alexofp/BDCC/main/LICENSE
+          cat > v7_reference_assets/SOURCE.txt <<'EOF'
+Source repository: https://github.com/Alexofp/BDCC
+Files:
+- Player/Props/CanineDildo.glb
+- Player/Props/HorsecockDildo.glb
+Repository license: MIT (copy included as BDCC_LICENSE.txt)
+Fetched only as reference/third-party assets for the Ragdoll Sims V7 prototype.
+EOF
+          sha256sum v7_reference_assets/* > v7_reference_assets/SHA256SUMS.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: bdcc-mit-prop-references
+          path: v7_reference_assets
+          retention-days: 2
